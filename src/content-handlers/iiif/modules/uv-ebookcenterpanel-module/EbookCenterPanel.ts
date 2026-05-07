@@ -13,7 +13,7 @@ import {
 import {
   applyPolyfills,
   defineCustomElements,
-} from "@universalviewer/uv-ebook-components/loader";
+} from "@universalviewer/uv-ebook-components/loader/index.mjs";
 import { Events } from "../../../../Events";
 import { Config } from "../../extensions/uv-ebook-extension/config/Config";
 

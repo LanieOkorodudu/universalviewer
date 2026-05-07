@@ -6,7 +6,7 @@ import { Async } from "../../Utils";
 import {
   applyPolyfills,
   defineCustomElements,
-} from "@universalviewer/uv-ebook-components/loader";
+} from "@universalviewer/uv-ebook-components/loader/index.mjs";
 import { Config } from "../../extensions/uv-ebook-extension/config/Config";
 
 export class EbookLeftPanel extends LeftPanel<
