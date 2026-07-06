@@ -11,6 +11,10 @@ const COOKBOOK_BOUND_MULTIVOLUME_MANIFEST =
 const PDF_MULTI_FILE_MANIFEST =
   "https://digital.library.villanova.edu/Item/vudl:294631/Manifest";
 
+// AV manifest
+const AV_MANIFEST =
+  "https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json";
+
 const viewerUrl = (manifestUrl) => {
   //const separator = BASE_URL.includes("#?") ? "&" : "#?";
   return `${BASE_URL}#?manifest=${encodeURIComponent(manifestUrl)}`;
@@ -211,9 +215,8 @@ describe("Universal Viewer", () => {
   // COOKBOOK MANIFEST TEST
   describe("viewer controls", () => {
     beforeEach(async () => {
-      await page.goto(viewerUrl(COOKBOOK_BOUND_MULTIVOLUME_MANIFEST), 
-      { 
-        waitUntil: "domcontentloaded"
+      await page.goto(viewerUrl(COOKBOOK_BOUND_MULTIVOLUME_MANIFEST), {
+        waitUntil: "domcontentloaded",
       });
     });
 
@@ -434,7 +437,7 @@ describe("Universal Viewer", () => {
 
       const viewerFrame = page.frames().find((f) => {
         const url = f.url();
-        
+
         return (
           url.includes("uv.html") ||
           url.includes("viewer") ||
@@ -443,14 +446,12 @@ describe("Universal Viewer", () => {
       });
 
       expect(viewerFrame).toBeTruthy();
-      
-      await viewerFrame.waitForSelector("canvas", { visible: true});
-      
+
+      await viewerFrame.waitForSelector("canvas", { visible: true });
+
       const canvasInfo = await viewerFrame.evaluate(() => {
-        const canvas = document.querySelector(
-          "canvas"
-        );
-        
+        const canvas = document.querySelector("canvas");
+
         if (!canvas) return null;
         return {
           width: canvas.width,
@@ -460,9 +461,11 @@ describe("Universal Viewer", () => {
       expect(canvasInfo).not.toBeNull();
       expect(canvasInfo.width).toBeGreaterThan(0);
       expect(canvasInfo.height).toBeGreaterThan(0);
-      
-      const pageText = await viewerFrame.evaluate(() => document.body.innerText);
-      
+
+      const pageText = await viewerFrame.evaluate(
+        () => document.body.innerText
+      );
+
       expect(pageText).not.toContain("Unable to load");
       expect(pageText).not.toContain("Error loading");
     });
@@ -483,4 +486,96 @@ describe("Universal Viewer", () => {
       expect(page.url()).toContain("cv=1");
     });
   });
+
+  // AV manifest
+  describe("AV component", () => {
+    let avPage;
+
+    beforeAll(async () => {
+      avPage = await browser.newPage();
+    });
+
+    afterAll(async () => {
+      await avPage.close();
+    });
+
+    beforeEach(async () => {
+      await avPage.goto("about:blanks");
+
+      await avPage.goto(viewerUrl(AV_MANIFEST), {
+        waitUntil: "domcontentloaded",
+      });
+    }, 60000);
+
+    it("loads the Av manifest, displays the title, plays for 10 seconds and pauses", async () => {
+      expect(avPage.url()).toContain(encodeURIComponent(AV_MANIFEST));
+
+      await avPage.waitForSelector(".uv", { visible: true });
+
+      await avPage.waitForSelector("#uv .mainPanel .centerPanel h1", {
+        visible: true,
+      });
+
+      const title = await avPage.$eval("#uv .mainPanel .centerPanel h1", 
+        (el) => el.textContent.trim()
+      );
+
+      expect(title).toBe("Video Example 3");
+
+      await avPage.waitForSelector(".uv-mediaelement-extension", {
+        visible: true,
+      });
+      
+      await avPage.waitForSelector(".mejs__container.mejs__video", {
+        visible: true,
+      });
+      
+      const videoSrc = await avPage.$eval(
+        ".mejs__mediaelement video",
+        (video) => video.currentSrc || video.src
+      );
+      
+      expect(videoSrc).toContain("lunchroom_manners_1024kb.mp4");
+      
+      await avPage.waitForSelector(".mejs__playpause-button button", {
+        visible: true,
+      });
+      
+      await avPage.click(".mejs__playpause-button button");
+      
+      await avPage.waitForFunction(() => {
+        const video = document.querySelector("video");
+        return video && !video.paused;
+      });
+      
+      const startTime = await avPage.$eval(
+        "video",
+        (video) => video.currentTime
+      );
+      
+      await avPage.waitForFunction(
+        (start) => {
+          const video = document.querySelector("video");
+          return video && video.currentTime > start + 10;
+        },
+        { timeout: 20000 },
+        startTime
+      );
+      
+      await avPage.click(".mejs__playpause-button button");
+      
+      await avPage.waitForFunction(() => {
+        const video = document.querySelector("video");
+        return video && video.paused;
+      });
+      
+      const pausedTime = await avPage.$eval(
+        "video",
+        (video) => video.currentTime
+      );
+      
+      expect(pausedTime).toBeGreaterThan(startTime + 10);
+    }, 60000);
+  });
 });
+
