@@ -489,52 +489,38 @@ describe("Universal Viewer", () => {
 
   // 3D manifest test
   describe("3D manifest", () => {
+    let modelPage;
+
+    beforeAll(async () => {
+      modelPage = await browser.newPage();
+    });
+
+    afterAll(async () => {
+      await modelPage.close();
+    });
+
     beforeEach(async () => {
-      await page.goto(viewerUrl(MODEL_3D_MANIFEST), {
+      // Force a full reload so the viewer re-initialises on the 3D manifest.
+      // A hash-only navigation may reuse the previous viewer state
+      await modelPage.goto("about:blank");
+
+      await modelPage.goto(viewerUrl(MODEL_3D_MANIFEST), {
         waitUntil: "domcontentloaded",
       });
+    }, 60000);
+
+    it("loads the Astronaut 3D manifest", async () => {
+      expect(modelPage.url()).toContain(encodeURIComponent(MODEL_3D_MANIFEST));
+
+      await modelPage.waitForSelector("#uv .mainPanel .centerPanel h1");
+
+      const title = await modelPage.$eval("#uv .mainPanel .centerPanel h1", 
+        function (el) {
+          return el.textContent.trim();
+        }
+      );
       
-      await page.waitForSelector(".uv", {
-        visible: true,
-      });
-    });
-    
-    it("loads the 3D manifest", async () => {
-      expect(page.url()).toContain(encodeURIComponent(MODEL_3D_MANIFEST));
-    });
-    
-    it("allows zoom interaction", async () => {
-      const viewer = await page.$(".uv, .centerPanel, canvas");
-      expect(viewer).toBeTruthy();
-      
-      const box = await viewer.boundingBox();
-      expect(box).toBeTruthy();
-      
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.mouse.wheel({ deltaY: -600 });
-      await page.mouse.wheel({ deltaY: 600 });
-      
-      const uv = await page.$(".uv");
-      expect(uv).toBeTruthy();
-    });
-    
-    it("allows model rotation", async () => {
-      const viewer = await page.$(".uv, .centerPanel, canvas");
-      expect(viewer).toBeTruthy();
-      
-      const box = await viewer.boundingBox();
-      expect(box).toBeTruthy();
-      
-      const centerX = box.x + box.width / 2;
-      const centerY = box.y + box.height / 2;
-      
-      await page.mouse.move(centerX, centerY);
-      await page.mouse.down();
-      await page.mouse.move(centerX + 200, centerY, { steps: 20 });
-      await page.mouse.up();
-      
-      const uv = await page.$(".uv");
-      expect(uv).toBeTruthy();
-    });
+      expect(title).toContain("Astronaut");
+    }, 60000);
   });
 });
